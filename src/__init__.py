@@ -1,3 +1,3 @@
-from .model import InputEmbeddings, PositionalEncoding
+from .model import InputEmbeddings, PositionalEncoding, LayerNormalization
 
-__all__ = ["InputEmbeddings", "PositionalEncoding"]
+__all__ = ["InputEmbeddings", "PositionalEncoding", "LayerNormalization"]
