@@ -1,9 +1,0 @@
-README.md
-pyproject.toml
-src/__init__.py
-src/model.py
-transformer_from_scratch.egg-info/PKG-INFO
-transformer_from_scratch.egg-info/SOURCES.txt
-transformer_from_scratch.egg-info/dependency_links.txt
-transformer_from_scratch.egg-info/requires.txt
-transformer_from_scratch.egg-info/top_level.txt
