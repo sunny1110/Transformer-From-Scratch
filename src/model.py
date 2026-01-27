@@ -110,7 +110,7 @@ class MultiHeadAttention(nn.Module):
         self.w_q = nn.Linear(d_model, d_model)
         self.w_k = nn.Linear(d_model, d_model)
         self.w_v = nn.Linear(d_model, d_model)
-        self.w_o = nn.Linear(d_model, d_model)
+        self.w_0 = nn.Linear(d_model, d_model)
 
     @staticmethod
     def attention(query: torch.Tensor, key: torch.Tensor, value: torch.Tensor, mask: torch.Tensor, dropout: nn.Dropout) -> tuple[torch.Tensor, torch.Tensor]:
@@ -132,7 +132,7 @@ class MultiHeadAttention(nn.Module):
 
         query = self.w_q(q) # (batch_size, seq_len, d_model)
         key = self.w_k(k) # (batch_size, seq_len, d_model)
-        value = self.q_v(v) # (batch_size, seq_len, d_model)
+        value = self.w_v(v) # (batch_size, seq_len, d_model)
 
         # Calculate the batch_size and seq_length
 
@@ -142,12 +142,12 @@ class MultiHeadAttention(nn.Module):
 
         query = query.view(batch_size, seq_len, self.h, self.d_k).transpose(1, 2) # (batch_size, h, seq_len, d_k)
         key = key.view(batch_size, seq_len, self.h, self.d_k).transpose(1, 2) # (batch_size, h, seq_len, d_k)
-        value = value.view(batch_size, seq_len, self.h, self.d_k).tranpose(1, 2) # (batch_size, h, seq_len, d_k)
+        value = value.view(batch_size, seq_len, self.h, self.d_k).transpose(1, 2) # (batch_size, h, seq_len, d_k)
 
         x, self.attention_scores = MultiHeadAttention.attention(query, key, value, mask, self.dropout)
 
         # (batch_size, h, seq_len, d_k) -> (batch_size, seq_len, h, d_k) -> (batch_size, seq_len, d_model)
-        x = x.tranpose(1, 2).contiguous().view(batch_size, seq_len, self.d_model)
+        x = x.transpose(1, 2).contiguous().view(batch_size, seq_len, self.d_model)
 
         return self.w_0(x)
 
@@ -174,10 +174,11 @@ class EncoderBlock(nn.Module):
         self.self_attention_block = self_attention_block
         self.feed_forward_block = feed_forward_block
         self.residual_connections = nn.ModuleList([ResidualConnection(dropout) for _ in range(2)])
+        self.dropout = dropout
 
     def forward(self, x: torch.Tensor, src_mask: torch.Tensor):
 
-        x = self.residual_connections[0](x, lambda x: self.self_attention_block(x, x, x, src_mask))
+        x = self.residual_connections[0](x, lambda x: self.self_attention_block(x, x, x, self.dropout, src_mask))
         x = self.residual_connections[1](x, self.feed_forward_block)
 
         return x
@@ -210,8 +211,8 @@ class DecoderBlock(nn.Module):
 
     def forward(self, x, encoder_output, src_mask, target_mask) -> torch.Tensor:
 
-        x = self.residual_connections[0](x, lambda x: self.self_attention(x, x, x, target_mask))
-        x = self.residual_connections[1](x, lambda x: self.self_attention(x, encoder_output, encoder_output, src_mask))
+        x = self.residual_connections[0](x, lambda x: self.self_attention_block(x, x, x, self.dropout, target_mask))
+        x = self.residual_connections[1](x, lambda x: self.self_attention_block(x, encoder_output, encoder_output, self.dropout, src_mask))
         x = self.residual_connections[2](x, self.feed_forward_block)
 
         return x
