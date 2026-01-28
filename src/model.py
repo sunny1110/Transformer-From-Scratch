@@ -140,9 +140,14 @@ class MultiHeadAttention(nn.Module):
 
         # Transform from: (batch_size, seq_len, d_model) -> (batch_size, num_heads, seq_len, d_k)
 
-        query = query.view(batch_size, seq_len, self.h, self.d_k).transpose(1, 2) # (batch_size, h, seq_len, d_k)
-        key = key.view(batch_size, seq_len, self.h, self.d_k).transpose(1, 2) # (batch_size, h, seq_len, d_k)
-        value = value.view(batch_size, seq_len, self.h, self.d_k).transpose(1, 2) # (batch_size, h, seq_len, d_k)
+        # Print shapes for debugging
+        # print(f"Query shape: {query.shape}")
+        # print(f"Key shape: {key.shape}")
+        # print(f"Value shape: {value.shape}")
+
+        query = query.view(batch_size, q.shape[1], self.h, self.d_k).transpose(1, 2) # (batch_size, h, seq_len, d_k)
+        key = key.view(batch_size, k.shape[1], self.h, self.d_k).transpose(1, 2) # (batch_size, h, seq_len, d_k)
+        value = value.view(batch_size, v.shape[1], self.h, self.d_k).transpose(1, 2) # (batch_size, h, seq_len, d_k)
 
         x, self.attention_scores = MultiHeadAttention.attention(query, key, value, mask, self.dropout)
 
@@ -212,7 +217,7 @@ class DecoderBlock(nn.Module):
     def forward(self, x, encoder_output, src_mask, target_mask) -> torch.Tensor:
 
         x = self.residual_connections[0](x, lambda x: self.self_attention_block(x, x, x, self.dropout, target_mask))
-        x = self.residual_connections[1](x, lambda x: self.self_attention_block(x, encoder_output, encoder_output, self.dropout, src_mask))
+        x = self.residual_connections[1](x, lambda x: self.cross_attention_block(x, encoder_output, encoder_output, self.dropout, src_mask))
         x = self.residual_connections[2](x, self.feed_forward_block)
 
         return x
@@ -240,7 +245,7 @@ class ProjectionLayer(nn.Module):
     def forward(self, x) -> torch.Tensor:
         
         x = self.proj(x)
-        x = torch.log_softmax(x, dim = -1)
+        # x = torch.log_softmax(x, dim = -1)
         return x
 
 class Transformer(nn.Module):
@@ -273,6 +278,9 @@ class Transformer(nn.Module):
     def decode(self, encoder_output, src_mask, target, target_mask) -> torch.Tensor:
         target = self.target_embedding(target)
         target = self.target_pos(target)
+
+        # print(f"Target shape in decode: {target.shape}")
+
         return self.decoder(target, encoder_output, src_mask, target_mask)
 
     def project(self, x) -> torch.Tensor:
